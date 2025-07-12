@@ -2,124 +2,180 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>Stok Opname Harian</title>
+  <title>Estimasi Kebutuhan Bahan Otomatis</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <!-- Tailwind + extend brand colors -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            brand: {
-              light: '#A4D4A4',   /* hijau muda */
-              DEFAULT: '#1F3D1F', /* hijau tua */
-              dark: '#10200F'     /* aksen gelap */
-            }
-          }
-        }
-      }
+  <style>
+    :root {
+      --primary: #4A90E2;
+      --accent: #50E3C2;
+      --background: #F7F9FC;
+      --card-bg: #FFFFFF;
+      --border: #E1E8F0;
+      --text: #333333;
     }
-  </script>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Calibri, sans-serif;
+      font-size: 11pt;
+      background: var(--background);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 24px;
+    }
+    h2 {
+      font-size: 2rem;
+      margin-bottom: 24px;
+      color: var(--primary);
+      text-align: center;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      justify-content: center;
+      margin-bottom: 32px;
+    }
+    .controls label {
+      font-weight: 600;
+      flex: 1 1 200px;
+      color: var(--text);
+    }
+    .controls input[type="file"] {
+      flex: 2 1 300px;
+      padding: 6px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #fff;
+    }
+    .controls .status {
+      flex: 1 1 150px;
+      align-self: center;
+      font-size: 0.9rem;
+      color: #555;
+    }
+    .controls button {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.3s, transform 0.2s;
+    }
+    .controls button:disabled {
+      background: var(--border);
+      cursor: not-allowed;
+    }
+    .controls button:not(:disabled):hover {
+      background: #357ABD;
+      transform: translateY(-2px);
+    }
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+      justify-content: center;
+    }
+    .box {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      padding: 24px;
+      flex: 1 1 360px;
+    }
+    .box h3 {
+      font-size: 1.25rem;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--primary);
+    }
+    .box button {
+      background: var(--accent);
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.3s;
+      color: #fff;
+    }
+    .box button:hover {
+      background: #45C9A8;
+    }
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      border-radius: 6px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    th, td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    th {
+      background: var(--primary);
+      color: #fff;
+      font-weight: 600;
+    }
+    tbody tr:nth-child(even) {
+      background: var(--background);
+    }
+    tbody tr:hover td {
+      background: #EAF4FF;
+    }
+    @media (max-width: 768px) {
+      .container { flex-direction: column; }
+      .controls { flex-direction: column; align-items: stretch; }
+    }
+  </style>
 </head>
-<body class="bg-green-50 text-gray-700 font-sans p-6">
-  <h2 class="text-3xl font-bold text-center text-brand mb-8">STOK OPNAME HARIAN</h2>
+<body>
+  <h2>Estimasi Kebutuhan Bahan</h2>
 
-  <div class="flex flex-wrap gap-4 justify-center mb-6">
-    <div class="flex flex-col flex-1 min-w-[200px]">
-      <label for="file-resep" class="font-semibold mb-1 text-brand-dark">RESEP:</label>
-      <input type="file" id="file-resep" accept=".xls,.xlsx"
-             class="p-2 border border-brand rounded-lg focus:ring-2 focus:ring-brand-light">
-      <span id="status-resep" class="mt-1 text-sm text-gray-500">Belum di-load</span>
-    </div>
-    <div class="flex flex-col flex-1 min-w-[200px]">
-      <label for="file-sales" class="font-semibold mb-1 text-brand-dark">PENJUALAN:</label>
-      <input type="file" id="file-sales" accept=".xls,.xlsx"
-             class="p-2 border border-brand rounded-lg focus:ring-2 focus:ring-brand-light">
-      <span id="status-sales" class="mt-1 text-sm text-gray-500">Belum di-load</span>
-    </div>
-    <button id="btn-hitung"
-            class="inline-block px-4 py-3 text-base bg-brand text-white rounded-lg shadow hover:bg-brand-dark transition disabled:opacity-50"
-            disabled>
-      Hitung
-    </button>
+  <div class="controls">
+    <label for="file-resep">1. File Resep:</label>
+    <input type="file" id="file-resep" accept=".xls,.xlsx">
+    <span id="status-resep" class="status">Belum di-load</span>
+
+    <label for="file-sales">2. File Penjualan:</label>
+    <input type="file" id="file-sales" accept=".xls,.xlsx">
+    <span id="status-sales" class="status">Belum di-load</span>
+
+    <button id="btn-hitung" disabled>Hitung</button>
   </div>
 
-  <div class="grid gap-6 md:grid-cols-2">
-    <div class="bg-white shadow-lg rounded-lg p-6 border-l-4 border-brand">
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="text-xl font-semibold text-brand">📊 Ringkasan Penjualan</h3>
-        <button id="copy-sales-btn"
-                class="px-3 py-1 bg-brand-light text-brand-dark rounded hover:bg-green-200 transition">
-          Salin
-        </button>
-      </div>
-      <div class="flex flex-wrap gap-2 mb-4">
-        <select id="filter-sales"
-                class="p-2 border border-brand rounded-lg focus:ring-2 focus:ring-brand-light">
-          <option>All</option>
-        </select>
-      </div>
-      <div class="overflow-auto">
-        <table id="table-sales" class="min-w-full divide-y divide-gray-200 hidden">
-          <thead class="bg-brand text-white">
-            <tr>
-              <th class="px-4 py-2 text-left">Menu/Produk</th>
-              <th class="px-4 py-2 text-left">Kategori</th>
-              <th class="px-4 py-2 text-left">Qty Terjual</th>
-            </tr>
-          </thead>
-          <tbody class="bg-white divide-y divide-gray-200"></tbody>
-        </table>
-      </div>
+  <div class="container">
+    <div class="box">
+      <h3>📊 Ringkasan Penjualan <button id="copy-sales-btn">Salin</button></h3>
+      <table id="table-sales" style="display:none;">
+        <thead>
+          <tr><th>Menu/Produk</th><th>Qty Terjual</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
     </div>
 
-    <div class="bg-white shadow-lg rounded-lg p-6 border-l-4 border-brand">
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="text-xl font-semibold text-brand">📝 Kebutuhan Bahan</h3>
-        <button id="copy-bahan-btn"
-                class="px-3 py-1 bg-brand-light text-brand-dark rounded hover:bg-green-200 transition">
-          Salin
-        </button>
-      </div>
-      <div class="flex flex-wrap gap-2 mb-4">
-        <select id="filter-bahan"
-                class="p-2 border border-brand rounded-lg focus:ring-2 focus:ring-brand-light">
-          <option>All</option>
-        </select>
-      </div>
-      <div class="overflow-auto">
-        <table id="table-bahan" class="min-w-full divide-y divide-gray-200 hidden">
-          <thead class="bg-brand text-white">
-            <tr>
-              <th class="px-4 py-2 text-left">Bahan</th>
-              <th class="px-4 py-2 text-left">Kategori</th>
-              <th class="px-4 py-2 text-left">Jumlah</th>
-              <th class="px-4 py-2 text-left">Satuan</th>
-            </tr>
-          </thead>
-          <tbody class="bg-white divide-y divide-gray-200"></tbody>
-        </table>
-      </div>
+    <div class="box">
+      <h3>📝 Kebutuhan Bahan <button id="copy-bahan-btn">Salin</button></h3>
+      <table id="table-bahan" style="display:none;">
+        <thead>
+          <tr><th>Bahan</th><th>Jumlah</th><th>Satuan</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
     </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script>
-    // Normalisasi kategori: gabungkan minuman panas/dingin jadi 'Minuman', makan ringan/berat jadi 'Makanan'
-    function normalizeCategory(cat) {
-      const c = cat.toLowerCase();
-      if (c.includes('minuman')) return 'MINUMAN';
-      if (c.includes('makanan')) return 'MAKANAN';
-      return cat || 'Uncategorized';
-    }
-
-    let resepData = [];
-    let salesDataMap = {};
-    let originalSalesData = [];
-    let currentSalesData = [];
-    let originalBahanData = [];
-    let currentBahanData = [];
+    let resepData = [], salesData = {};
 
     function readExcel(file, cb) {
       const reader = new FileReader();
@@ -129,8 +185,15 @@
       };
       reader.readAsBinaryString(file);
     }
-    document.getElementById('file-resep').addEventListener('change', e => { if (e.target.files[0]) readExcel(e.target.files[0], parseResep); });
-    document.getElementById('file-sales').addEventListener('change', e => { if (e.target.files[0]) readExcel(e.target.files[0], parseSales); });
+
+    document.getElementById('file-resep')
+      .addEventListener('change', e => {
+        if (e.target.files[0]) readExcel(e.target.files[0], parseResep);
+      });
+    document.getElementById('file-sales')
+      .addEventListener('change', e => {
+        if (e.target.files[0]) readExcel(e.target.files[0], parseSales);
+      });
 
     function parseResep(raw) {
       const norm = v => v.toString().trim().replace(',', '.');
@@ -138,130 +201,106 @@
         const row = {};
         Object.entries(r).forEach(([k,v]) => {
           const key = k.trim().toLowerCase();
-          if (key === 'menu') row.Menu = norm(v);
-          if (key === 'bahan') row.Bahan = norm(v).toUpperCase();
-          if (key === 'jumlah') row.Jumlah = parseFloat(norm(v)) || 0;
-          if (key === 'satuan') row.Satuan = v.toString().trim();
-          if (key === 'yieldqty') row.YieldQty = parseFloat(norm(v)) || 1;
+          if (key === 'menu')       row.Menu = norm(v);
+          if (key === 'bahan')      row.Bahan = norm(v).toUpperCase();
+          if (key === 'jumlah')     row.Jumlah = parseFloat(norm(v)) || 0;
+          if (key === 'satuan')     row.Satuan = v.toString().trim();
+          if (key === 'yieldqty')   row.YieldQty = parseFloat(norm(v)) || 1;
         });
         return row;
-      }).filter(r => r.Menu && r.Bahan);
+      })
+      .filter(r => r.Menu && r.Bahan);
       document.getElementById('status-resep').textContent = `Resep: ${resepData.length} baris`;
       checkReady();
     }
 
     function parseSales(raw) {
-      salesDataMap = {};
+      salesData = {};
       raw.forEach(r => {
-        let produk = '', qty = 0, kategori = '';
+        let produk = '', qty = 0;
         Object.entries(r).forEach(([k,v]) => {
           const key = k.trim().toLowerCase();
           if (['menu','produk'].includes(key)) produk = v;
-          if (['jumlah','qty','terjual','jumlah terjual'].includes(key)) qty = parseFloat(v) || 0;
-          if (key === 'kategori') kategori = normalizeCategory(v);
+          if (['jumlah','qty','terjual','jumlah terjual'].includes(key))
+            qty = parseFloat(v) || 0;
         });
-        if (produk) {
-          if (!salesDataMap[produk]) salesDataMap[produk] = { qty: 0, category: kategori };
-          salesDataMap[produk].qty += qty;
-        }
+        if (produk) salesData[produk] = (salesData[produk]||0) + qty;
       });
-      document.getElementById('status-sales').textContent = `Penjualan: ${Object.keys(salesDataMap).length} produk`;
+      document.getElementById('status-sales')
+        .textContent = `Penjualan: ${Object.keys(salesData).length} produk`;
       checkReady();
     }
 
     function checkReady() {
-      document.getElementById('btn-hitung').disabled = !(resepData.length && Object.keys(salesDataMap).length);
+      document.getElementById('btn-hitung').disabled =
+        !(resepData.length && Object.keys(salesData).length);
     }
 
     document.getElementById('btn-hitung').addEventListener('click', () => {
-      // Sales: build & sort
-      originalSalesData = Object.entries(salesDataMap).map(([m,d]) => ({ produk: m, qty: d.qty, category: d.category || 'Uncategorized' }));
-      originalSalesData.sort((a,b) => a.produk.localeCompare(b.produk));
-      currentSalesData = [...originalSalesData];
-      setupSalesFilter();
       renderSales();
+      renderBahan();
+    });
 
-      // Bahan: compute needs with normalized categories
-      const map = {}, units = {}, bahanCategories = {};
+    function renderSales() {
+      const tb = document.querySelector('#table-sales tbody');
+      tb.innerHTML = '';
+      const fmt = new Intl.NumberFormat('id-ID',{minimumFractionDigits:2,maximumFractionDigits:2});
+      Object.entries(salesData).forEach(([m,q]) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${m}</td><td>${fmt.format(q)}</td>`;
+        tb.appendChild(tr);
+      });
+      document.getElementById('table-sales').style.display = '';
+    }
+
+    function renderBahan() {
+      const map = {}, units = {};
       const intermediate = new Set(resepData.map(r=>r.Menu));
-      Object.entries(salesDataMap).forEach(([menu,d]) => {
-        const qty = d.qty;
-        const cat = d.category;
+      Object.entries(salesData).forEach(([menu,qty]) => {
         const recs = resepData.filter(r=>r.Menu===menu);
         if (!recs.length) return;
         const ratio = qty / recs[0].YieldQty;
         recs.forEach(r => {
           const need = r.Jumlah * ratio;
-          const keyBahan = r.Bahan;
-          if (!bahanCategories[keyBahan]) bahanCategories[keyBahan] = new Set();
-          bahanCategories[keyBahan].add(cat);
-          if (intermediate.has(keyBahan)) {
-            resepData.filter(s=>s.Menu===keyBahan).forEach(s => {
+          if (intermediate.has(r.Bahan)) {
+            const subs = resepData.filter(s=>s.Menu===r.Bahan);
+            subs.forEach(s => {
               const subNeed = s.Jumlah * (need / s.YieldQty);
               map[s.Bahan] = (map[s.Bahan]||0) + subNeed;
               units[s.Bahan] = s.Satuan;
-              if (!bahanCategories[s.Bahan]) bahanCategories[s.Bahan] = new Set();
-              bahanCategories[s.Bahan].add(cat);
             });
           } else {
-            map[keyBahan] = (map[keyBahan]||0) + need;
-            units[keyBahan] = r.Satuan;
+            map[r.Bahan] = (map[r.Bahan]||0) + need;
+            units[r.Bahan] = r.Satuan;
           }
         });
       });
-      originalBahanData = Object.entries(map).map(([b,v]) => ({
-        bahan: b,
-        jumlah: v,
-        satuan: units[b]||'',
-        category: Array.from(bahanCategories[b]||['Uncategorized']).join(', ')
-      }));
-      originalBahanData.sort((a,b) => a.bahan.localeCompare(b.bahan));
-      currentBahanData = [...originalBahanData];
-      setupBahanFilter();
-      renderBahan();
-    });
-
-    function setupSalesFilter() {
-      const sel = document.getElementById('filter-sales'); sel.innerHTML = '';
-      sel.append(new Option('All','All'));
-      [...new Set(originalSalesData.map(i=>i.category))].forEach(c => sel.append(new Option(c,c)));
-    }
-    function setupBahanFilter() {
-      const sel = document.getElementById('filter-bahan'); sel.innerHTML = '';
-      sel.append(new Option('All','All'));
-      [...new Set(originalBahanData.map(i=>i.category))].forEach(c => sel.append(new Option(c,c)));
-    }
-
-    function renderSales() {
-      const tb = document.querySelector('#table-sales tbody'); tb.innerHTML = '';
+      const tb = document.querySelector('#table-bahan tbody');
+      tb.innerHTML = '';
       const fmt = new Intl.NumberFormat('id-ID',{minimumFractionDigits:2,maximumFractionDigits:2});
-      currentSalesData.forEach(({produk,qty,category}) => tb.insertAdjacentHTML('beforeend', `<tr><td class="px-4 py-2">${produk}</td><td class="px-4 py-2">${category}</td><td class="px-4 py-2">${fmt.format(qty)}</td></tr>`));
-      document.getElementById('table-sales').classList.remove('hidden');
-    }
-    function renderBahan() {
-      const tb = document.querySelector('#table-bahan tbody'); tb.innerHTML = '';
-      const fmt = new Intl.NumberFormat('id-ID',{minimumFractionDigits:2,maximumFractionDigits:2});
-      currentBahanData.forEach(({bahan,jumlah,satuan,category}) => tb.insertAdjacentHTML('beforeend', `<tr><td class="px-4 py-2">${bahan}</td><td 클래스="px-4 py-2">${category}</td><td class="px-4 py-2">${fmt.format(jumlah)}</td><td class="px-4 py-2">${satuan}</td></tr>`));
-      document.getElementById('table-bahan').classList.remove('hidden');
+      Object.entries(map).forEach(([b,v]) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${b}</td><td>${fmt.format(v)}</td><td>${units[b]||''}</td>`;
+        tb.appendChild(tr);
+      });
+      document.getElementById('table-bahan').style.display = '';
     }
 
-    document.getElementById('filter-sales').addEventListener('change', () => {
-      const v=document.getElementById('filter-sales').value;
-      currentSalesData = v==='All' ? [...originalSalesData] : originalSalesData.filter(i=>i.category===v);
-      renderSales();
-    });
-    document.getElementById('filter-bahan').addEventListener('change', () => {
-      const v=document.getElementById('filter-bahan').value;
-      currentBahanData = v==='All' ? [...originalBahanData] : originalBahanData.filter(i=>i.category===v);
-      renderBahan();
-    });
-
-    function copyTable(id) {
-      const rows = Array.from(document.querySelectorAll(`#${id} tbody tr`)).map(r=>Array.from(r.cells).map(c=>c.textContent).join('\t')).join('\n');
-      navigator.clipboard.writeText(rows);
+    function copyTable(id, btnId) {
+      const rows = Array.from(document.querySelectorAll(`#${id} tbody tr`))
+        .map(r => Array.from(r.cells).map(c => c.textContent).join('\t'))
+        .join('\n');
+      navigator.clipboard.writeText(rows).then(() => {
+        const btn = document.getElementById(btnId);
+        const old = btn.textContent;
+        btn.textContent = 'Tersalin!';
+        setTimeout(()=>btn.textContent=old,1500);
+      });
     }
-    document.getElementById('copy-sales-btn').addEventListener('click', () => copyTable('table-sales'));
-    document.getElementById('copy-bahan-btn').addEventListener('click', () => copyTable('table-bahan'));
+    document.getElementById('copy-sales-btn')
+      .onclick = ()=>copyTable('table-sales','copy-sales-btn');
+    document.getElementById('copy-bahan-btn')
+      .onclick = ()=>copyTable('table-bahan','copy-bahan-btn');
   </script>
 </body>
 </html>
