@@ -2,17 +2,21 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>Estimasi Kebutuhan Bahan Otomatis</title>
+  <title>Stok Opname Harian</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <style>
     :root {
-      --primary: #4A90E2;
-      --accent: #50E3C2;
-      --background: #F7F9FC;
+      /* PALETTE TRILOGI SPACE */
+      --primary: #1F3D1F;       /* hijau tua */
+      --primary-dark: #10200F;  /* aksen gelap */
+      --accent: #A4D4A4;        /* hijau muda */
+      --background: #ECFDF3;    /* very light green */
       --card-bg: #FFFFFF;
-      --border: #E1E8F0;
+      --border: #CDE7C9;        /* soft green border */
       --text: #333333;
     }
+    /* hiding helper for JS */
+    .hidden { display: none; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: Calibri, sans-serif;
@@ -45,7 +49,7 @@
       padding: 6px;
       border: 1px solid var(--border);
       border-radius: 6px;
-      background: #fff;
+      background: var(--card-bg);
     }
     .controls .status {
       flex: 1 1 150px;
@@ -68,7 +72,7 @@
       cursor: not-allowed;
     }
     .controls button:not(:disabled):hover {
-      background: #357ABD;
+      background: var(--primary-dark);
       transform: translateY(-2px);
     }
     .container {
@@ -104,7 +108,7 @@
       color: #fff;
     }
     .box button:hover {
-      background: #45C9A8;
+      background: #CDE7CD;
     }
     table {
       width: 100%;
@@ -128,7 +132,7 @@
       background: var(--background);
     }
     tbody tr:hover td {
-      background: #EAF4FF;
+      background: #E8F3E8;
     }
     @media (max-width: 768px) {
       .container { flex-direction: column; }
@@ -137,14 +141,14 @@
   </style>
 </head>
 <body>
-  <h2>Estimasi Kebutuhan Bahan</h2>
+  <h2>STOK OPNAME HARIAN</h2>
 
   <div class="controls">
-    <label for="file-resep">1. File Resep:</label>
+    <label for="file-resep">RESEP:</label>
     <input type="file" id="file-resep" accept=".xls,.xlsx">
     <span id="status-resep" class="status">Belum di-load</span>
 
-    <label for="file-sales">2. File Penjualan:</label>
+    <label for="file-sales">PENJUALAN:</label>
     <input type="file" id="file-sales" accept=".xls,.xlsx">
     <span id="status-sales" class="status">Belum di-load</span>
 
@@ -152,21 +156,42 @@
   </div>
 
   <div class="container">
+    <!-- Ringkasan Penjualan -->
     <div class="box">
-      <h3>📊 Ringkasan Penjualan <button id="copy-sales-btn">Salin</button></h3>
-      <table id="table-sales" style="display:none;">
+      <h3>📊 Ringkasan Penjualan
+        <button id="copy-sales-btn">Salin</button>
+      </h3>
+      <select id="filter-sales">
+        <option>All</option>
+      </select>
+      <table id="table-sales" class="hidden">
         <thead>
-          <tr><th>Menu/Produk</th><th>Qty Terjual</th></tr>
+          <tr>
+            <th>Menu/Produk</th>
+            <th>Kategori</th>
+            <th>Qty Terjual</th>
+          </tr>
         </thead>
         <tbody></tbody>
       </table>
     </div>
 
+    <!-- Kebutuhan Bahan -->
     <div class="box">
-      <h3>📝 Kebutuhan Bahan <button id="copy-bahan-btn">Salin</button></h3>
-      <table id="table-bahan" style="display:none;">
+      <h3>📝 Kebutuhan Bahan
+        <button id="copy-bahan-btn">Salin</button>
+      </h3>
+      <select id="filter-bahan">
+        <option>All</option>
+      </select>
+      <table id="table-bahan" class="hidden">
         <thead>
-          <tr><th>Bahan</th><th>Jumlah</th><th>Satuan</th></tr>
+          <tr>
+            <th>Bahan</th>
+            <th>Kategori</th>
+            <th>Jumlah</th>
+            <th>Satuan</th>
+          </tr>
         </thead>
         <tbody></tbody>
       </table>
@@ -175,7 +200,20 @@
 
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script>
-    let resepData = [], salesData = {};
+    // Normalisasi kategori: gabungkan minuman panas/dingin jadi 'Minuman', makanan ringan/berat jadi 'Makanan'
+    function normalizeCategory(cat) {
+      const c = cat.toLowerCase();
+      if (c.includes('minuman')) return 'MINUMAN';
+      if (c.includes('makanan')) return 'MAKANAN';
+      return cat || 'Uncategorized';
+    }
+
+    let resepData = [];
+    let salesDataMap = {};
+    let originalSalesData = [];
+    let currentSalesData = [];
+    let originalBahanData = [];
+    let currentBahanData = [];
 
     function readExcel(file, cb) {
       const reader = new FileReader();
@@ -185,15 +223,12 @@
       };
       reader.readAsBinaryString(file);
     }
-
-    document.getElementById('file-resep')
-      .addEventListener('change', e => {
-        if (e.target.files[0]) readExcel(e.target.files[0], parseResep);
-      });
-    document.getElementById('file-sales')
-      .addEventListener('change', e => {
-        if (e.target.files[0]) readExcel(e.target.files[0], parseSales);
-      });
+    document.getElementById('file-resep').addEventListener('change', e => {
+      if (e.target.files[0]) readExcel(e.target.files[0], parseResep);
+    });
+    document.getElementById('file-sales').addEventListener('change', e => {
+      if (e.target.files[0]) readExcel(e.target.files[0], parseSales);
+    });
 
     function parseResep(raw) {
       const norm = v => v.toString().trim().replace(',', '.');
@@ -201,106 +236,163 @@
         const row = {};
         Object.entries(r).forEach(([k,v]) => {
           const key = k.trim().toLowerCase();
-          if (key === 'menu')       row.Menu = norm(v);
-          if (key === 'bahan')      row.Bahan = norm(v).toUpperCase();
-          if (key === 'jumlah')     row.Jumlah = parseFloat(norm(v)) || 0;
-          if (key === 'satuan')     row.Satuan = v.toString().trim();
-          if (key === 'yieldqty')   row.YieldQty = parseFloat(norm(v)) || 1;
+          if (key === 'menu') row.Menu = norm(v);
+          if (key === 'bahan') row.Bahan = norm(v).toUpperCase();
+          if (key === 'jumlah') row.Jumlah = parseFloat(norm(v)) || 0;
+          if (key === 'satuan') row.Satuan = v.toString().trim();
+          if (key === 'yieldqty') row.YieldQty = parseFloat(norm(v)) || 1;
         });
         return row;
-      })
-      .filter(r => r.Menu && r.Bahan);
+      }).filter(r => r.Menu && r.Bahan);
       document.getElementById('status-resep').textContent = `Resep: ${resepData.length} baris`;
       checkReady();
     }
 
     function parseSales(raw) {
-      salesData = {};
+      salesDataMap = {};
       raw.forEach(r => {
-        let produk = '', qty = 0;
+        let produk = '', qty = 0, kategori = '';
         Object.entries(r).forEach(([k,v]) => {
           const key = k.trim().toLowerCase();
           if (['menu','produk'].includes(key)) produk = v;
-          if (['jumlah','qty','terjual','jumlah terjual'].includes(key))
-            qty = parseFloat(v) || 0;
+          if (['jumlah','qty','terjual','jumlah terjual'].includes(key)) qty = parseFloat(v) || 0;
+          if (key === 'kategori') kategori = normalizeCategory(v);
         });
-        if (produk) salesData[produk] = (salesData[produk]||0) + qty;
+        if (produk) {
+          if (!salesDataMap[produk]) salesDataMap[produk] = { qty: 0, category: kategori };
+          salesDataMap[produk].qty += qty;
+        }
       });
-      document.getElementById('status-sales')
-        .textContent = `Penjualan: ${Object.keys(salesData).length} produk`;
+      document.getElementById('status-sales').textContent = `Penjualan: ${Object.keys(salesDataMap).length} produk`;
       checkReady();
     }
 
     function checkReady() {
-      document.getElementById('btn-hitung').disabled =
-        !(resepData.length && Object.keys(salesData).length);
+      document.getElementById('btn-hitung').disabled = !(resepData.length && Object.keys(salesDataMap).length);
     }
 
     document.getElementById('btn-hitung').addEventListener('click', () => {
+      // Sales: build & sort
+      originalSalesData = Object.entries(salesDataMap).map(([m,d]) => ({
+        produk: m, qty: d.qty, category: d.category || 'Uncategorized'
+      }));
+      originalSalesData.sort((a,b) => a.produk.localeCompare(b.produk));
+      currentSalesData = [...originalSalesData];
+      setupSalesFilter();
       renderSales();
-      renderBahan();
-    });
 
-    function renderSales() {
-      const tb = document.querySelector('#table-sales tbody');
-      tb.innerHTML = '';
-      const fmt = new Intl.NumberFormat('id-ID',{minimumFractionDigits:2,maximumFractionDigits:2});
-      Object.entries(salesData).forEach(([m,q]) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${m}</td><td>${fmt.format(q)}</td>`;
-        tb.appendChild(tr);
-      });
-      document.getElementById('table-sales').style.display = '';
-    }
-
-    function renderBahan() {
-      const map = {}, units = {};
+      // Bahan: compute needs
+      const map = {}, units = {}, bahanCategories = {};
       const intermediate = new Set(resepData.map(r=>r.Menu));
-      Object.entries(salesData).forEach(([menu,qty]) => {
+      Object.entries(salesDataMap).forEach(([menu,d]) => {
+        const qty = d.qty, cat = d.category;
         const recs = resepData.filter(r=>r.Menu===menu);
         if (!recs.length) return;
         const ratio = qty / recs[0].YieldQty;
         recs.forEach(r => {
           const need = r.Jumlah * ratio;
-          if (intermediate.has(r.Bahan)) {
-            const subs = resepData.filter(s=>s.Menu===r.Bahan);
-            subs.forEach(s => {
+          const keyBahan = r.Bahan;
+          bahanCategories[keyBahan] = bahanCategories[keyBahan]||new Set();
+          bahanCategories[keyBahan].add(cat);
+          if (intermediate.has(keyBahan)) {
+            resepData.filter(s=>s.Menu===keyBahan).forEach(s => {
               const subNeed = s.Jumlah * (need / s.YieldQty);
               map[s.Bahan] = (map[s.Bahan]||0) + subNeed;
               units[s.Bahan] = s.Satuan;
+              bahanCategories[s.Bahan] = bahanCategories[s.Bahan]||new Set();
+              bahanCategories[s.Bahan].add(cat);
             });
           } else {
-            map[r.Bahan] = (map[r.Bahan]||0) + need;
-            units[r.Bahan] = r.Satuan;
+            map[keyBahan] = (map[keyBahan]||0) + need;
+            units[keyBahan] = r.Satuan;
           }
         });
       });
-      const tb = document.querySelector('#table-bahan tbody');
-      tb.innerHTML = '';
-      const fmt = new Intl.NumberFormat('id-ID',{minimumFractionDigits:2,maximumFractionDigits:2});
-      Object.entries(map).forEach(([b,v]) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${b}</td><td>${fmt.format(v)}</td><td>${units[b]||''}</td>`;
-        tb.appendChild(tr);
+      originalBahanData = Object.entries(map).map(([b,v]) => ({
+        bahan: b, jumlah: v, satuan: units[b]||'', 
+        category: Array.from(bahanCategories[b]||['Uncategorized']).join(', ')
+      }));
+      originalBahanData.sort((a,b) => a.bahan.localeCompare(b.bahan));
+      currentBahanData = [...originalBahanData];
+      setupBahanFilter();
+      renderBahan();
+    });
+
+    function setupSalesFilter() {
+      const sel = document.getElementById('filter-sales');
+      sel.innerHTML = '';
+      sel.append(new Option('All','All'));
+      [...new Set(originalSalesData.map(i=>i.category))]
+        .forEach(c => sel.append(new Option(c,c)));
+      sel.addEventListener('change', () => {
+        const v = sel.value;
+        currentSalesData = v==='All' 
+          ? [...originalSalesData] 
+          : originalSalesData.filter(i=>i.category===v);
+        renderSales();
       });
-      document.getElementById('table-bahan').style.display = '';
+    }
+    function setupBahanFilter() {
+      const sel = document.getElementById('filter-bahan');
+      sel.innerHTML = '';
+      sel.append(new Option('All','All'));
+      [...new Set(originalBahanData.map(i=>i.category))]
+        .forEach(c => sel.append(new Option(c,c)));
+      sel.addEventListener('change', () => {
+        const v = sel.value;
+        currentBahanData = v==='All'
+          ? [...originalBahanData]
+          : originalBahanData.filter(i=>i.category===v);
+        renderBahan();
+      });
     }
 
-    function copyTable(id, btnId) {
-      const rows = Array.from(document.querySelectorAll(`#${id} tbody tr`))
-        .map(r => Array.from(r.cells).map(c => c.textContent).join('\t'))
-        .join('\n');
-      navigator.clipboard.writeText(rows).then(() => {
-        const btn = document.getElementById(btnId);
-        const old = btn.textContent;
-        btn.textContent = 'Tersalin!';
-        setTimeout(()=>btn.textContent=old,1500);
+    function renderSales() {
+      const tb = document.querySelector('#table-sales tbody');
+      tb.innerHTML = '';
+      const fmt = new Intl.NumberFormat('id-ID',{
+        minimumFractionDigits:2,maximumFractionDigits:2
       });
+      currentSalesData.forEach(({produk,qty,category}) => {
+        tb.insertAdjacentHTML('beforeend',
+          `<tr>
+             <td>${produk}</td>
+             <td>${category}</td>
+             <td>${fmt.format(qty)}</td>
+           </tr>`);
+      });
+      document.getElementById('table-sales').classList.remove('hidden');
     }
-    document.getElementById('copy-sales-btn')
-      .onclick = ()=>copyTable('table-sales','copy-sales-btn');
-    document.getElementById('copy-bahan-btn')
-      .onclick = ()=>copyTable('table-bahan','copy-bahan-btn');
+    function renderBahan() {
+      const tb = document.querySelector('#table-bahan tbody');
+      tb.innerHTML = '';
+      const fmt = new Intl.NumberFormat('id-ID',{
+        minimumFractionDigits:2,maximumFractionDigits:2
+      });
+      currentBahanData.forEach(({bahan,jumlah,satuan,category}) => {
+        tb.insertAdjacentHTML('beforeend',
+          `<tr>
+             <td>${bahan}</td>
+             <td>${category}</td>
+             <td>${fmt.format(jumlah)}</td>
+             <td>${satuan}</td>
+           </tr>`);
+      });
+      document.getElementById('table-bahan').classList.remove('hidden');
+    }
+
+    document.getElementById('copy-sales-btn').addEventListener('click', () => {
+      const rows = Array.from(document.querySelectorAll('#table-sales tbody tr'))
+        .map(r=>Array.from(r.cells).map(c=>c.textContent).join('\t'))
+        .join('\n');
+      navigator.clipboard.writeText(rows);
+    });
+    document.getElementById('copy-bahan-btn').addEventListener('click', () => {
+      const rows = Array.from(document.querySelectorAll('#table-bahan tbody tr'))
+        .map(r=>Array.from(r.cells).map(c=>c.textContent).join('\t'))
+        .join('\n');
+      navigator.clipboard.writeText(rows);
+    });
   </script>
 </body>
 </html>
